@@ -3,6 +3,7 @@ import scrapy
 #backup folder
 backup_folder=r"D:\Scrapy\myntra\myntra\backup_pages"
 
+#Spider Class 
 class CategoriesSpider(scrapy.Spider):
     name="cate"
     start_urls=["https://www.myntra.com/"]
