@@ -33,13 +33,13 @@ class MyntraPipeline:
          """)
         
         self.cursor.execute("""
-            CREATE TABLE IF NOT EXISTS product_links3 (
+            CREATE TABLE IF NOT EXISTS product_links4 (
                 id INT AUTO_INCREMENT PRIMARY KEY,
                                              
                 product_name VARCHAR(255),
                 product_id INT,
                 category_hierarchy JSON,            
-                product_link VARCHAR(500) UNIQUE,
+                product_link VARCHAR(500) ,
                 status VARCHAR(50)          
             )
          """)
@@ -70,7 +70,7 @@ class MyntraPipeline:
             status=adap.get("status")
 
             self.cursor.execute("""
-                INSERT IGNORE INTO  product_links3 (product_name, product_id, category_hierarchy,product_link,status)
+                INSERT  INTO  product_links4 (product_name, product_id, category_hierarchy,product_link,status)
                 VALUES (%s, %s, %s, %s,%s)
             """, (product_name, product_id,category_hierarchy, product_link, status ))
             self.con.commit()

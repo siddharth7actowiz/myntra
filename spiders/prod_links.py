@@ -3,53 +3,20 @@ import scrapy
 from ..pipelines import MyntraPipeline
 from urllib.parse import urlencode,urljoin
 import json
-
+import gzip
+from ..cookies_extract import get_cookies
 #to store saved response in a folder
 BACKUP=r"D:\Scrapy\myntra\myntra\backup_pages\product_links2"
 
+def load_cookies():
+    with open("cookies.json", "r") as f:
+        return json.load(f)
+
 #Spider Class 
+
 class Product_link(scrapy.Spider):
     name = "prodlinks"
-    cookies = {
-    'at': 'ZXlKaGJHY2lPaUpJVXpJMU5pSXNJbXRwWkNJNklqRWlMQ0owZVhBaU9pSktWMVFpZlEuZXlKdWFXUjRJam9pWW1aa1lUYzVOVGN0TTJRMU9DMHhNV1l4TFRobU1tWXRZakptTVdRM1pHSTVOR1k0SWl3aVkybGtlQ0k2SW0xNWJuUnlZUzB3TW1RM1pHVmpOUzA0WVRBd0xUUmpOelF0T1dObU55MDVaRFl5WkdKbFlUVmxOakVpTENKaGNIQk9ZVzFsSWpvaWJYbHVkSEpoSWl3aWMzUnZjbVZKWkNJNklqSXlPVGNpTENKbGVIQWlPakUzT1RJek1UQTJPREVzSW1semN5STZJa2xFUlVFaWZRLnRJYXQzZnd0U3RNY19pZkZsX1k1SnlzYVRIMEk2WnBZR0haV3VPcjgtUnM=',
-    '_d_id': '0131b128-0606-49b0-a2eb-ebce6823fe30',
-    'mynt-eupv': '1',
-    'mynt-ulc-api': 'pincode%3A380008',
-    '_gcl_au': '1.1.1416392668.1776758682',
-    '_cs_ex': '1',
-    '_cs_c': '1',
-    '_fbp': 'fb.1.1776758682757.354532818192485209',
-    'tvc_VID': '1',
-    '_scid': '9LVd1yPd6f1KSk8K_0gppcjKGVzfLCFX',
-    '_sctr': '1%7C1776709800000',
-    'G_ENABLED_IDPS': 'google',
-    '__insp_wid': '617845923',
-    '__insp_slim': '1776764660518',
-    '__insp_nv': 'true',
-    '__insp_targlpu': 'aHR0cHM6Ly93d3cubXludHJhLmNvbS9sb2dpbj9yZWZlcmVyPWh0dHBzOi8vd3d3Lm15bnRyYS5jb20vbWVuLXRzaGlydHM%3D',
-    '__insp_targlpt': 'TXludHJh',
-    '__insp_norec_sess': 'true',
-    'x-mynt-pca': '2sgFFrMwExqalIvvWPCfOTF4-Mx-V-ghrycoaxbRn0lpb2x102bs09uecbBsdNVUNGdqwq6V1CzdS_Jy_e2ue3FUXNJq5ft0KFWIANvAhRbW_qkv0vFWEjK50hqAS4uA6mGQ7NWxC4hBpnruxifDX1t05yoMxgHDs9bCwPDdoEax4TWShl2ecA%3D%3D',
-    '_ma_session': '%7B%22id%22%3A%226f3c0af9-a59c-4bc0-b3da-a0bc3134d87c-0131b128-0606-49b0-a2eb-ebce6823fe30%22%2C%22referrer_url%22%3A%22%22%2C%22utm_medium%22%3A%22%22%2C%22utm_source%22%3A%22%22%2C%22utm_channel%22%3A%22direct%22%7D',
-    '_mxab_': 'config.bucket%3Dregular%3Bcoupon.cart.channelAware%3DchannelAware_Enabled',
-    '_pv': 'default',
-    'dp': 'd',
-    'lt_timeout': '1',
-    'lt_session': '1',
-    'bm_mi': 'D0579D4A33DF7A2F365932CE0FFB165F~YAAQDRzFF45aTrOdAQAAPxRmtB87E6bD0mNN8AqROKAwChLN0JfzJ1ldAEmxxBuB+AIrDD+z+2lKq/ISaYj+cKyPgML1CAjP0odA2+p6pGOzpQX//go/9cpr6rjDgtQ0iKCmWvIr0SJNf1+v6NAGFnxuJKUEKGw+QDt2hp82tn5oo7gi29DQ614/+GDJ5XDkhbcltuwNk5q2QVl9Q4ZVSL5bfxv+pavT8YgN0KyQmomBHcboa6v/i51ChCpCZYF+/PGJca//DNH3ud1TB9D1hujZw6UjMOLb6oQz5DxLA+AdvIMT/vA6hxYhS+QGRBhlQamXXMhbCHzxK0W+4HD6XHBFnXBhBdlHkuCSqqDrRNvL~1',
-    'microsessid': '565',
-    '_xsrf': 'tfBwGAKsXptAyp6Pyhg8PTFG1dGxRTX8',
-    'mynt-loc-src': 'expiry%3A1776849523754%7Csource%3AIP',
-    'ak_bmsc': '4D4D4E6E767AABE99BDF977CC8C89A6C~000000000000000000000000000000~YAAQDRzFF8NlTrOdAQAAVihmtB//kxuaQJaAhGQvTxLD4B6EuAaEfHik5WQlzKTd1nbA6CppyAe2Q5J1ze6M/F9fiKmRxlDob7UDwhuzS0nUGgyRcfeq4XjdDlFvNtv2BR+SJumCI1Tu2yLtJtljg/fZd4Lvk2wmRpZ4TMd3SoZnLh4uM703ryWfajP42vG+BJ4FCAxHEsBcR/XyiHyCRtIh9LpkGoB6z7AUYdTH1SVV8hqsWoRH8DWKLoIrQNt878ri9SOEnro2Y9+Xs76av1o5acQe01INbh65+e8SPPSqhGIhZH0Rru7ykw0Huvl6qEnKeTFfrQiTx8YNtN+Tt0vLjX5tzbOWmidfv2Kwtj6wfVNZ8I7vWIbmu5INwidLqCfL6V3BcONZcUzRYHBbAuePvvW6WtwPu1BPwcVki6NF+9O+k2q9LZhXAHW1yNVypSLBaUU0rD7SArHg8je2AB5Yyin+rROVsaPcqBzmD1a3iwgAw6XCFN5f+ax9sZECHj+u1IQZoRU=',
-    'bm_sz': '6B9747ACEC821551AD50AAC36F638073~YAAQDRzFF7GmTrOdAQAA6JVmtB8UicUS0Aqj5c+1AOtyftIr4Hc5EFll8+Vk/jw+jDBAJV4MDd5KydsJK5x0oHjBNO894/leRJxQKOutgK6hX/OS6QLtS+oeU/4Ew1DUNCoHZn1UbuM173H+F0fKtgsZ7o9/Iwd9cwfdKSCIrky6CgZydEZ7GDeZKg53rtV/NodO0WS4AIvZCIeoMXiw02Uc/2mPmLZgIHmexRHkPhYlcgZP+OdM1+GiTKl/O7zwn9jvpAQYlkMpRzce0ji1XUKJzk3l46OYRPubU/pEiBRHnMzVfErAvxKfoiNuTWsAkbWDe/ebJWGXdByOcJfnwqLQzwyR/rYqt/TQR39WBWgYx9O7sVW71E8SPJ768O5BI36Hn2dbFRDhAbVhbo4GyYir/GDGQcm1pHCogC7yeaNWhwf8dNtBnJttd16zRrIUtooUA8N3iTt97cuREOgaQ7zu5MAAWbly/A3SSX+SPVrvye8ie/wZJA3l32jzu5rygkQ8CcnXRQHUOlNqP+NaucPVKAtj8PkChPHcfDtkfrBd7SE8jhCW4wgg40mY8Fho9JpcGd79wQh2TKov0wI=~3683382~4338502',
-    'ak_RT': '"z=1&dm=myntra.com&si=686120a8-81b4-4caa-98f7-91dcb6d74821&ss=mo9juzzz&sl=c&tt=5lh&obo=9&rl=1"',
-    'utm_track_v1': '%7B%22utm_source%22%3A%22direct%22%2C%22utm_medium%22%3A%22direct%22%2C%22trackstart%22%3A1776848115%2C%22trackend%22%3A1776848175%7D',
-    'utrid': 'DFl0FQIDVRMGVBh5TVpAMCM3MTQwNDQ4MDAkMg%3D%3D.134b59d7329d189aae2f998ec136660e',
-    'user_session': '-XNqkWXcfl14yQrCUhd-AQ.eG6zoh-1_Ok7vO8oEq7ZaP2FypCd-3zWPcAhHvdvyP9HBj8wQbtLreTuCzFuftHQfCJr0LQ0M8GcyaQV9kRymgQaICy2jKOOgg4teP5Qwu2jAOtH261emBnKWnG-2ClEAw7Ahob4fk_70Pb8g_f0Jg.1776848082777.86400000.ZO8Ef1f9shD3N0PpATSMhAx6mD_DStPGzoXp2OH0hOI',
-    'bm_sv': '7105B1109CAA8E8FFCAE5C3105FAFD4E~YAAQDRzFF8usTrOdAQAA3p9mtB8K+UnWuP64EuKmb17wsvS5MVGGetHi6xJrO0KjGX2EHbQ8himUimbtRV47x9n5gab+KAWWEk06BEPgghfEe+EVZ2j34GKpL5IkJ6YuS8SHFIXA+ASktQr3w69W3Bg2+UsWAMxpXZgiEUkANZwB9n5dm5L3KjnVyVw+Z6JlNlZj3NzZ0+pckB07+tpzTaYPUnMF0H1FutH/BfOxjtte+Imcazd1QE0UEifY2TFNwA==~1',
-    '_abck': '55E024A098E2E9A035A7612A7A1EBD0A~0~YAAQDRzFF3evTrOdAQAAo6NmtA9Zh/MjlapRK2yq4k7GaLsSyC2tvdQOKKdAThVB1tSz2BACKWyBXNuWBkdAOC942f1hF9vpPiqCbFrmZFIq0u7uwy+dwIRMzQAgeHe01yBj39drcVzi8Tq0n3XDVlgwQp5UKRg62Goy53DXwJlsx03tl/WYFgEWdw48W/4Ee99+Xkv86WzYSBZRf+0O+WiNDG+CBHH5mF42LBqOip0tHc/eOZMSDnCdT4zrpVHEH8s+sZYEe0KSjZtR37+1y1kKHwpbnnMmyHCK1vScckK0Wi4aMGmHRX9Lp9nxmO/Su5ZKlhekVf7QrczdUGPNlxCA4omXj35QcOlXbcZrPKjpHPERzMulyuUthfJK+OabQ0gcpjzvs0cS+keGfBt66yCYnS869G99pxEKVLAJ0LrnWfcwIRYtVGXX1wVv+OuVEUwlE4Laouf63xIuEyAFRiIuEIj70hjE5KdYAe4qb0duH/WPsHVSQp6Z8r31t+OT1medihyrFP+OW0SNsvRJzGlGf9psQgEqy3pM8juDBIvpy5aTG9xKmL6k0AYQh0NkRuSwWF5WoRH/yo2w+VH2klZqTAjl+rr7LmX0eFWOyPijby11Jt3jYrWu8VpUgsujcgdrYcESt2NTTRBiwV3xGPODCHdSjC7H6dlId8YRv7KIUT2HI8KrHIabBL+OujWRkTEU9n8D7GvUenFwfw2L71QMgkoBT6i4/8UBJe2NAX3Npi72jQQRjYn4hLn6XB2H0xRw1+spczw3+eHr4XVdJMHOYg+7zIac4p5IGPn/zoaqs+F+Jl4kdHwACdLNUKfUsS4UUcMgVtbX4Z1TjWoNbfgnWxme/WKHbB+jeLpELxXmKo0UKHR+gvlRmSVfbDUKvEQ0fShb4Re1zo972R7r2PUq9i+27Tr6Ogw=~-1~-1~-1~AAQAAAAF%2f%2f%2f%2f%2f3XFnGSL%2fJMhJ9a7ONcpQawbAy79CJhA2QPrLIez3zWjH9TCjUh5GBfZZhxg1ht6xf6IDZ4Afv5YWdTlSWbGOuDJCCOqe0RWmuI7U1RrpYWlJIox5QURuU3EBAhPKkGFllyUTqgZJpeYdQlSw5%2fFWvl6F1r8p7L1isBp7LEuPaHYcnhTmE4cMIPlvm+nGmeVwGyPGE3csdSM~-1',
-    '_scid_r': 'CTVd1yPd6f1KSk8K_0gppcjKGVzfLCFXujA2HQ',
-}
+    
 
     headers = {
     'accept': 'application/json',
@@ -79,7 +46,7 @@ class Product_link(scrapy.Spider):
     # 'cookie': 'at=ZXlKaGJHY2lPaUpJVXpJMU5pSXNJbXRwWkNJNklqRWlMQ0owZVhBaU9pSktWMVFpZlEuZXlKdWFXUjRJam9pWW1aa1lUYzVOVGN0TTJRMU9DMHhNV1l4TFRobU1tWXRZakptTVdRM1pHSTVOR1k0SWl3aVkybGtlQ0k2SW0xNWJuUnlZUzB3TW1RM1pHVmpOUzA0WVRBd0xUUmpOelF0T1dObU55MDVaRFl5WkdKbFlUVmxOakVpTENKaGNIQk9ZVzFsSWpvaWJYbHVkSEpoSWl3aWMzUnZjbVZKWkNJNklqSXlPVGNpTENKbGVIQWlPakUzT1RJek1UQTJPREVzSW1semN5STZJa2xFUlVFaWZRLnRJYXQzZnd0U3RNY19pZkZsX1k1SnlzYVRIMEk2WnBZR0haV3VPcjgtUnM=; _d_id=0131b128-0606-49b0-a2eb-ebce6823fe30; mynt-eupv=1; mynt-ulc-api=pincode%3A380008; x-mynt-pca=X6OBk4bFIeybx0-nSr6DH4ooQphl7u878h_mNd0MwASqOyoR9iUkJbjYlCFyDW1fhA5o0Ud3_5TVFOLbuBQXF8TrJdgQJUGp_dAEJrahUpIknKsIFAvbwsBR-Ui9WZwVgPNvl3W1AT30xhY2gvAl0bkumlC5ucoXJ0FM_UzMU2OZPDS3c3nOfg%3D%3D; _gcl_au=1.1.1416392668.1776758682; _cs_ex=1; _cs_c=1; _fbp=fb.1.1776758682757.354532818192485209; tvc_VID=1; _scid=9LVd1yPd6f1KSk8K_0gppcjKGVzfLCFX; _sctr=1%7C1776709800000; G_ENABLED_IDPS=google; __insp_wid=617845923; __insp_slim=1776764660518; __insp_nv=true; __insp_targlpu=aHR0cHM6Ly93d3cubXludHJhLmNvbS9sb2dpbj9yZWZlcmVyPWh0dHBzOi8vd3d3Lm15bnRyYS5jb20vbWVuLXRzaGlydHM%3D; __insp_targlpt=TXludHJh; __insp_norec_sess=true; _ma_session=%7B%22id%22%3A%22e4e5022b-d89a-4d88-83fd-bf4037c8cdd4-0131b128-0606-49b0-a2eb-ebce6823fe30%22%2C%22referrer_url%22%3A%22%22%2C%22utm_medium%22%3A%22%22%2C%22utm_source%22%3A%22%22%2C%22utm_channel%22%3A%22direct%22%7D; _mxab_=config.bucket%3Dregular%3Bcoupon.cart.channelAware%3DchannelAware_Enabled; _pv=default; dp=d; lt_timeout=1; lt_session=1; bm_mi=DEC626BAB3EA8F69E2887BECB9141212~YAAQx18yuJKJgKudAQAAgfHzsx/nv0BqhMbpDlpc3Y/AJ3yiwnvNTzJY6kZ4wmoyS4Fux5A/Jef7vZwnJP6IhE3TooNw9Lk5tu2ZXidk8bq/QzTYPfHmDzskeWT2k3s5pO2r8ZQVrF4yHTfM5Fdy5DE06zLi5+ACwC54TU2jaA5U/m1DqATVBCWJ0R0ylZfhgWO7KaLyaETSwuBvVJthhzMSz9Sn28n1K2yvaVwiDHzeTLrGiyg3n40MtJNr8wdLNWnm4gflnhgNIBvZqgVyklW0hfba84khAdcuCMdhqxE/Tuc6XWt002adkr63xihLHGGo5Zp7MZ9x2w79d0c0dCy5LPuMB10yM35y9FujBRz1~1; microsessid=418; _xsrf=UD5PlddWhPKj4YdDQMWyMgPRXk03Q70k; mynt-loc-src=expiry%3A1776842043781%7Csource%3AIP; ak_bmsc=D89D327544CE715FB86C6C27E52E5980~000000000000000000000000000000~YAAQx18yuOqRgKudAQAAo0T0sx8dYpd6XB7x7EzUdtkw6FRmjYm13/NZDFv19QMnMixXCHNiEHIiUh/yHy3xPBmuksvme9Ee3a0vt+mcXiNItuERq6Ee9MiZzYhhf8A86Kso/gtqPIRqssWGd6KDMfumRg0bdqvqb7NohKzdn7TX/7eTfPgVuYK4hsKfMUj8ZgyG77SwFjQj4EsXCybQ+UKcbWXXUJghMvw97biWyU+tmX1KR0c3IvFI6jcRmLtGodjZ61FFLNJsFkm1g3OuPLtYghPE2EMq4xJ5Z23b8/dTqJc7CEUOH31hDluOBpPXOBfoQY4d4500TS3zwHolb+byb8ycYi/bhY1/kh59ug3kLeyyB/m5pkmRcF+MZbvFwnY7fVVQVOeh8ty2R1w3Zy4wectiUFf49bH1BdnbSFni/PQ0eiY5+/6vDLLTuOuH4sz10mWzyN52JZO5mRR8E3X/Pr9gL+JX2i8aAqmLpxVib/xH/o5IcUugO0XsDD3P9s+e/qskMKk=; bm_sz=C2B14A58DBE1845F94F51C5D2D8372B6~YAAQx18yuOyRgKudAQAAo0T0sx+wixskwI1oV2S+9OMtg+3FDo0MowL1/LuQ694ZLJ3KFgFV9l7KGh328hwpwqNT2Lserh+mj+3vlX+UtdqJNG+5KgUyVT7XbPf8f7vq/HBARS7/vUUlTgjNmAt3evAFxJ6Usc+AMLKb/3B8FBe9ElwDN8MmCCMWbZAAgQ/9zkdIY/xhG8fTF2Rm+7ReR9B6jKKx+kyRBnDLApzGxuOK9/QCSrh02dsbiG7PzqsyS7RVu5Iz1V7Si1SEilpX5hnXrFS/iM9iU0/RDs769/GJnjpXHO1yhMvbaAHm0oPGsZGMg7l+OCoyE8xZ2rR2y2c035z7inUVfNVw23hJ8H1wSZdACkE8ifupAnfPPGXoSgyrMNd8oF6Pdnp21enKv6YTW72Bke1VNymnPrimP3sVzlh+URXaUFhyYjJD0G1pAguJmVSq7aZZO9XQxB4/JylOCzSiBTOi4HX/rqjBhpTt0iHLpV2njMlzcVEMfG5KPMVfdyjMHi5yZI8Hww4VjFFFaVQZwpWqwhGAFPlZ0SWviJk=~4277815~3291193; ak_RT="z=1&dm=myntra.com&si=686120a8-81b4-4caa-98f7-91dcb6d74821&ss=mo9juzzz&sl=a&tt=5lh&obo=7&rl=1"; _abck=55E024A098E2E9A035A7612A7A1EBD0A~0~YAAQx18yuEGSgKudAQAAyEf0sw91yxPVvb2daZ2Tc/7ZQNUGZFp0Mj68Cp7OQlPwhCksISlQX2CmRaEk+rDph2GN5mSM2pSglw2QcxyomtywH0QU2uq/yhzXJcEsWc7A+kyuRs+ppd9sQZiBF5h4YsHWbfSzqo5UVUqEvpymSTx50qhXCq+NOgcAq2cVD9fOI7eKkIEmfWqwHxFtm6opIu0FyXb354jJrV12J//rhEAoUUonJVl/RAJlTOE1c91orSYkdYARKN1RF+dkw91pUo77kxCGTCFfdN4AzahdeY+71IXnmKD5CkW+gu/m4bhs64QjGigpTTo68ld5zvLBgFMilEquNyMlFWHBqMtgHNDkKJTmdSe+2fc3Hf0H3IWz5/aVOsWBPeaockKMwk3r6CD2YFfVTvgA11kZa0M/VFROyYIVsoKpsMW9yxmpq0zgJROWTBlI2SHg+QnPcSIcawyUQFnvdH45yMVQkFmAfdqdSOdfrjfgrGfvKGMbyyMALWhSKesLKSQD7Z/2swfbYbE7Qr3kzeN+jMTHTjmQjCQ5/PuUOHNzOz44vs0K+JBlzSmjPbgTUWbnPuDi5rLrqvfcAdCErdPl6b4oWP0a41s0U2V9yi+uIJ1NshO249Valis2UXhpZk142Xf97VlPQBo8x7XLsrAABTakOpKKpYTh/OWX48aiIRMZa79Nlz+IDDds6znP0BtsIFpTXmlOKkyS/yU9OQFp/1zgIlL+R6koidW1spCWGfRmoZlesKgZmS4BcuntwTe1whyWHwzuDh6h9I7kaKnY6dWkyzaKbZ+pJDyhhktBtpjDsNeroJcXhzbkiCgL0NNqalcTYxRRkns43nmHHxs3YB3kk20E52J9QxnrDOMKxGkjME4Xm/lF36G9I1fR/bWuLwaUVlTzeklqduw7oHTSXuV8IXVzcsp46KqBQ3phs2OYLeZOVlUKQ6UY4v/LyPc9L7UqLKdfrJJ1mZeQF6IDid7dIa+tHsXzpTUTk51snz8koF4QL3fYyvm4/WZoztetYhxVtIOuF1bd/d05vWXq1XgeK2KYRh3mkkFmKyunrs/JJZKcRL9OhJYBZ/5sOznqz17kQqYL+e+0W9MgRWyT7FuhI4/lmWjuri5AVtK4eZiRVtsDnfas~-1~-1~-1~AAQAAAAF%2f%2f%2f%2f%2f3XFnGSL%2fJMhJ9a7ONcpQawbAy79CJhA2QPrLIez3zWjH9TCjUh5GBfZZhxg1ht6xf6IDZ4Afv5YWdTlSWbGOuDJCCOqe0RWmuI7U1RrpYWlJIox5QURuU3EBAhPKkGFllyUTqgZJpeYdQlSw5%2fFWvl6F1r8p7L1isBp7LEuPaHYcnhTmE4cMIPlvm+nGmeVwGyPGE3csdSM~-1; utm_track_v1=%7B%22utm_source%22%3A%22direct%22%2C%22utm_medium%22%3A%22direct%22%2C%22trackstart%22%3A1776840624%2C%22trackend%22%3A1776840684%7D; utrid=SA9jdk0WWXBxTFQAaGZAMCMzNjQxNzI4NzM0JDI%3D.a43a8b8bf9c3648ffe28cb80457834dc; user_session=K3GypmTLn7azKiTVTCVGvg.SffQDEHcHZf7i0GcqjnMdvC9Es631_OGfdBy9UX7lCoJCPp0yG9NExMKap9r0S-79AQgA8nKRw24IG2dzn84azarfcOaUwoid2gVs3ZR1bq1ISvveuiZ3kZ-Zjfv3N-atyhjkix96aMF0o4tmkWsPQ.1776840603058.86400000.4CIBzayYP3H_17wyaG38AUskBIhRxhYCyIiWJ4jPcYU; bm_sv=D710EFB0FA84F8E7CFEDF543A02FE775~YAAQx18yuJWTgKudAQAA/FH0sx/0H/P7JaM+EkaTlB+72Q76raDGrrmIoKRHnivmie8Z+qYgMH+XpJItQWYD9JUqxsFtL8vTNuOiogxmoMvURljxRAHFVMRN7qpbCVETi65gFqJdnjqRQ9+bOWFBmDBtwRA7XpRvTN8Fjle8L3fP/eLiy4fb86bfjB1+TwRoZxbFIg0e8cgr6iYZzYvPGf7MEx8vdMDOV2gWpTlAyqvwUGctktSwAUO7SGUuGWsdNw==~1; _scid_r=BDVd1yPd6f1KSk8K_0gppcjKGVzfLCFXujA2GA',
 }    
     
-    #multiprocessing - taking stand and end args to run multiple processes
+    # multiprocessing - taking stand and end args to run multiple processes 
     def __init__(self, start=None, end=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.start_index = int(start) if start is not None else 0
@@ -125,7 +92,7 @@ class Product_link(scrapy.Spider):
                 url=api,
                 callback=self.parse,
                 headers=self.headers,
-                cookies=self.cookies,
+                cookies=load_cookies(),
                 meta={
                     "category": category,
                     "subcategory": subcategory,
@@ -156,8 +123,8 @@ class Product_link(scrapy.Spider):
         safe_sub = subcategory.replace("/", "_").replace(" ", "_")
 
         # save each page separately
-        with open(f"{BACKUP}/{safe_cat}_{safe_sub}_{page_number}.json", "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=4)
+        with gzip.open(f"{BACKUP}/{safe_cat}_{safe_sub}_{page_number}.json.gz", "wt", encoding="utf-8") as f:
+          json.dump(data, f, indent=4)
 
         # extract products
         for product in data.get("products") or []:
@@ -191,7 +158,7 @@ class Product_link(scrapy.Spider):
                 url=api,
                 callback=self.parse,
                 headers=self.headers,
-                cookies=self.cookies,
+                cookies=load_cookies(),
                 meta={
                     "category": category,
                     "subcategory": subcategory,
@@ -201,5 +168,5 @@ class Product_link(scrapy.Spider):
                 }
             )
         else:
-            # update status only after full pagination
+            #update status only after full pagination
             self.pipeline.update_status(link)
